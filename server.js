@@ -5,6 +5,26 @@ const { Server } = require('ws');
 const server = new Server({
     port: process.env.PORT || 8080,
     maxPayload: 1e5,
+    verifyClient: function(information, cb) {
+        let request = information.req;
+        let ip = request.socket.remoteAddress ||
+            request.connection.socket.remoteAddress ||
+            request.headers['x-forwarded-for'];
+
+        if (server.blacklist.has(ip)) return cb(false, 418, 'Unable to brew coffee.');
+        if (!request.headers.upgrade ||
+            !request.headers.connection ||
+            !request.headers.host ||
+            !request.headers.pragma ||
+            !request.headers["cache-control"] ||
+            !request.headers["user-agent"] ||
+            !request.headers["sec-websocket-version"] ||
+            !request.headers["accept-encoding"] ||
+            !request.headers["accept-language"] ||
+            !request.headers["sec-websocket-key"] ||
+            !request.headers["sec-websocket-extensions"]) return cb(false, 418, 'Unable to brew coffee.');
+        cb(true);
+    },
 });
 
 server.users = {};
@@ -40,25 +60,10 @@ server.on('connection', function(socket, request) {
         _send.call(this, data);
     };
 
-    socket.ip = request.connection.remoteAddress || 
-        request.socket.remoteAddress ||
+    socket.ip = request.socket.remoteAddress ||
         request.connection.socket.remoteAddress ||
         request.headers['x-forwarded-for'];
-    socket.authorizedLevel = 1;
-
-    if (server.blacklist.has(socket.ip)) return socket.close();
-
-    if (!request.headers.upgrade ||
-        !request.headers.connection ||
-        !request.headers.host ||
-        !request.headers.pragma ||
-        !request.headers["cache-control"] ||
-        !request.headers["user-agent"] ||
-        !request.headers["sec-websocket-version"] ||
-        !request.headers["accept-encoding"] ||
-        !request.headers["accept-language"] ||
-        !request.headers["sec-websocket-key"] ||
-        !request.headers["sec-websocket-extensions"]) return socket.ban();
+    socket.authorizedLevel = 0;
 
     fetch(`https://ipqualityscore.com/api/json/ip/ZwS61NRyh2WNRpZrzQLKmMYD5mxhyxUf/${socket.ip}`).then(r => r.json()).then(data => {
         if (data.vpn ||
@@ -67,7 +72,7 @@ server.on('connection', function(socket, request) {
             data.active_tor) {
                 socket.send({
                     header: 'CONNECTION_CLOSE',
-                    data: { message: 'Our servers have detected you have a proxy enabled. Due to the prominence of botting, we do not allow proxies. Please disable it, and then reload.' },
+                    data: { message: 'Our servers have detected you using a proxy. Please disable it.', },
                 });
                 socket.terminate();
             } else {
