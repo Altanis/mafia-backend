@@ -1,7 +1,7 @@
 # Mafia Backend
 
 This project is a WIP and is not fully finished yet.
-This will implement a previous project I was working on ((see here)[https://github.com/CoderSudaWuda/chat-backend]) for players to communicate to eachother.
+This will implement a previous project I was working on ([see here](https://github.com/CoderSudaWuda/chat-backend)) for players to communicate to eachother.
 
 To Do List:
 - [ ] Create a registration system with email verification.
