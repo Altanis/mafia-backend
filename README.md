@@ -4,6 +4,7 @@ This project is a WIP and is not fully finished yet.
 This will implement a previous project I was working on ([see here](https://github.com/CoderSudaWuda/chat-backend)) for players to communicate to eachother.
 
 To Do List:
+- [ ] Check for client disconnections.
 - [ ] Create a registration system with email verification.
 - [ ] Create a profile system for players to give themselves bios, usernames, and avatars.
 - [ ] Create basic Mafia roles (Mafia, Roleblocker, Villager, Cop, Doctor, Gunsmith).
@@ -18,3 +19,10 @@ To Do List:
 - [ ] Create options for setups (Daystart, Timers).
 
 **More complicated systems will be implemented later.**
+
+**PROTOCOL**
+
+As of so far, the only protocol being implemented is a WebSocket protocol which sends JSON payloads.
+
+The WSS will be responsible for: checking for client disconnects and messaging.
+The Express server will be responsible for everything else which includes verification, lobbies, setups, and games.
