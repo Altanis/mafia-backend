@@ -62,14 +62,8 @@ server.on('connection', async function(socket, request) {
 
     if (bans.filter(user => { return user.ip == socket.ip })[0]) return socket.close();
 
-    let _send = socket.send;
-    socket.send = function(data, cb) {
-        if (typeof data == 'object') data = JSON.stringify(data);
-        _send(data, cb);
-    };
-
     if (!request.url) {
-        socket.send({ header: 'AUTHORIZATION_INVALID', data: { message: 'The token was unable to be found.' } });
+        socket.send(JSON.stringify({ header: 'AUTHORIZATION_INVALID', data: { message: 'The token was unable to be found.' } }));
         return socket.close();
     }
     
@@ -80,7 +74,7 @@ server.on('connection', async function(socket, request) {
     const session = users.filter(user => { return user.accessWebSocket.token == socket.params.token  })[0];
 
     if (!session) {
-        socket.send({ header: 'AUTHORIZATION_INVALID', data: { message: 'The token provided was invalid.' } });
+        socket.send(JSON.stringify({ header: 'AUTHORIZATION_INVALID', data: { message: 'The token provided was invalid.' } }));
         return socket.close();
     }
     socket.ip = request.socket.remoteAddress ||
@@ -92,23 +86,23 @@ server.on('connection', async function(socket, request) {
             data.tor ||
             data.active_vpn ||
             data.active_tor) {
-                socket.send({
+                socket.send(JSON.stringify({
                     header: 'CONNECTION_CLOSE',
                     data: { message: 'Our servers have detected you have a proxy enabled. Due to the prominence of botting, we do not allow proxies. Please disable it, and then reload.' },
-                });
+                }));
                 socket.close();
             } else {
-                socket.send({ header: 'ACCEPT' });
+                socket.send(JSON.stringify({ header: 'ACCEPT' }));
                 socket.authorizedLevel = 1;
             }
     }).catch(er => {
         console.error(`Could not detect whether or not IP is a proxy.`, er);
-        socket.send({ header: 'ACCEPT' });
+        socket.send(JSON.stringify({ header: 'ACCEPT' }));
         socket.authorizedLevel = 1;
     });
 
     socket.on('message', function(data) {
-        if (!socket.authroizedLevel) return socket.send({ header: 'PACKET_REJECT', data: { message: 'Please wait for the server to finish verifying whether or not a proxy is being used.' } });
+        if (!socket.authroizedLevel) return socket.send(JSON.stringify({ header: 'PACKET_REJECT', data: { message: 'Please wait for the server to finish verifying whether or not a proxy is being used.' } }));
 
         try {
             data = JSON.parse(data)
