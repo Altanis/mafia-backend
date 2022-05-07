@@ -1,18 +1,27 @@
 require('dotenv').config();
 
+// Import modules.
 const { Server } = require('ws');
 const { Users, BanList } = require('../db/Models');
-
 const Express = require('express');
 const mongoose = require('mongoose');
 const fetch = require('node-fetch');
 const queryString = require('query-string');
 
+// Import routes.
+
+const { AccountRouter } = require('../routes/Account');
+
+// Connect to database.
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('MongoDB has loaded.'))
     .catch(err => console.error('Could not load database: ', err));
 
+// Create servers.
 const app = Express();
+app.use(Express.json());
+app.use(Express.urlencoded({ extended: false } ));
+
 const server = new Server({ 
     noServer: true,
     maxPayload: 1e5,
@@ -39,8 +48,39 @@ const server = new Server({
     }
 });
 
+// Make tokens expire.
+setInterval(async () => {
+    let users = await Users.find();
+    users.forEach(async userData => {
+        if (Date.now() >= userData.verification?.confirmation?.expiresAt) {
+            const verificationToken = require('crypto').createHash('sha256').update(JSON.stringify(Math.random().toString(16).substring(2))).digest('hex');
+            const user = await Users.findOne({ _id: userData._id  });
+
+            user.verification.confirmation = {
+                token: verificationToken,
+                createdAt: Date.now(),
+                expiresAt: Date.now() + 108e5,
+            }
+            user.save();
+        } else if (Date.now() >= userData.accessWebSocket.expiresAt) {
+            const accessToken = require('crypto').createHash('sha256').update(JSON.stringify(`${userData.email} + ${userData.password} + ${Date.now()}`)).digest('hex');
+            const user = await Users.findOne({ _id: userData._id  });
+
+            user.accessWebSocket = {
+                token: accessToken,
+                createdAt: Date.now(),
+                expiresAt: Date.now() + 432e5,
+            };
+            user.save();
+        }
+    });
+}, 5000);
+
+// Listen to requests.
+app.use('/account', AccountRouter);
+
 app.get('/', function(request, response) {
-    response.send('Express server is online.');
+    response.send('serverside express. client will make requests at this location.');
 });
 
 server.on('connection', async function(socket, request) {
@@ -105,9 +145,18 @@ server.on('connection', async function(socket, request) {
         if (!socket.authroizedLevel) return socket.send(JSON.stringify({ header: 'PACKET_REJECT', data: { message: 'Please wait for the server to finish verifying whether or not a proxy is being used.' } }));
 
         try {
-            data = JSON.parse(data)
+            data = JSON.parse(data);
+            if (!data) return socket.ban();
         } catch (error) {
             socket.ban();
+        }
+
+        if (!data.header) return socket.ban();
+        switch (data.header) {
+            case 'PING': {
+                socket.send(JSON.stringify({ header: 'PONG' }));
+                break;
+            }
         }
     });
 });
