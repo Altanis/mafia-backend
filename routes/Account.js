@@ -13,6 +13,30 @@ OAuth2Client.setCredentials({ refresh_token: process.env.CLIENT_REFRESH_TOKEN })
 
 const AccountRouter = Router();
 
+const sendMail = (email, url) => {
+    OAuth2Client.getAccessToken()
+        .then(token => {
+            const transport = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    type: 'OAuth2',
+                    user: process.env.CLIENT_EMAIL,
+                    clientId: process.env.CLIENT_ID,
+                    clientSecret: process.env.CLIENT_SECRET,
+                    refreshToken: process.env.CLIENT_REFRESH_TOKEN,
+                    accessToken: token,
+                },
+            });
+
+            transport.sendMail({
+                from: 'Mafia Verification 🤵 <donotreplymafia@gmail.com>',
+                to: email,
+                subject: 'Verification for Mafia',
+                html: `Please click this link to verify your E-Mail: <a href=${url}>${url}</a>`
+            })
+        });
+};
+
 AccountRouter.route('/login')
     .post(async (request, response) => {
         let users = await Users.find();
@@ -26,6 +50,20 @@ AccountRouter.route('/login')
         if (!user.accessWebSocket.token) return response.status(500).send('The server could not retrieve your data. Please try again later.');
 
         response.status(200).send(user.accessWebSocket.token);
+    });
+
+AccountRouter.route('/resend')
+    .post(async (request, response) => {
+        const users = await Users.find();
+
+        const { email, password } = request.body;
+        let user = users.filter(user => user.email == email)[0];
+        if (!user) return response.status(400).send('E-Mail is not registered.');
+        if (!bcrypt.compareSync(password, user.password)) return response.status(400).send('An invalid password was provided.');
+        if (user.verification.verified) return response.status(400).send('You are already verified.');
+        
+        sendMail(email, `http://localhost:3000/account/register?token=${user.verification.confirmation.token}`);
+        response.status(200).send('A confirmation link was sent to your E-Mail.');
     });
 
 AccountRouter.route('/register')
@@ -82,30 +120,8 @@ AccountRouter.route('/register')
             user.save()
                 .then(() => {
                     let url = `http://localhost:3000/account/register?token=${verificationToken}`;
-
-                    OAuth2Client.getAccessToken()
-                        .then(token => {
-                            const transport = nodemailer.createTransport({
-                                service: 'gmail',
-                                auth: {
-                                    type: 'OAuth2',
-                                    user: process.env.CLIENT_EMAIL,
-                                    clientId: process.env.CLIENT_ID,
-                                    clientSecret: process.env.CLIENT_SECRET,
-                                    refreshToken: process.env.CLIENT_REFRESH_TOKEN,
-                                    accessToken: token,
-                                },
-                            });
-
-                            transport.sendMail({
-                                from: 'Mafia Verification 🤵 <donotreplymafia@gmail.com>',
-                                to: email,
-                                subject: 'Verification for Mafia',
-                                html: `Please click this link to verify your E-Mail: <a href=${url}>${url}</a>`
-                            })
-                        });
-
-                    response.status(200).send('Account created. Please verify your E-Mail address by the link we sent to your email.');
+                    sendMail(email, url);
+                    response.status(200).send('Account created. Please verify your E-Mail address by the link we sent to your email. If you didn\'t receive it, send a POST request to: http://localhost:3000/account/resend');
                 });
         } catch (error) {
             response.status(500).send('There was an issue saving your password. Please try again later.');

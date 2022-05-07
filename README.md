@@ -9,7 +9,7 @@ To Do List:
    - [x] Create E-Mail verification.
    - [x] Login to account.
    - [x] Make tokens expire.
-   - [ ] Resend verification E-Mail.
+   - [x] Resend verification E-Mail.
    - [ ] Create a "Forgot Password" system.
 - [ ] Create a profile system for players to give themselves bios, usernames, and avatars.
 - [ ] Create basic Mafia roles (Mafia, Roleblocker, Villager, Cop, Doctor, Gunsmith).
