@@ -10,7 +10,7 @@ To Do List:
    - [x] Login to account.
    - [x] Make tokens expire.
    - [x] Resend verification E-Mail.
-   - [ ] Create a "Forgot Password" system.
+   - [x] Create a "Forgot Password" system.
 - [ ] Create a profile system for players to give themselves bios, usernames, and avatars.
 - [ ] Create basic Mafia roles (Mafia, Roleblocker, Villager, Cop, Doctor, Gunsmith).
 - [ ] Create a system where you can share setups (example 2 Mafias and 5 Villagers, or 2 Mafias 4 Villagers 1 Cop).
