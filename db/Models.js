@@ -12,11 +12,12 @@ const Users = mongoose.model('User', new mongoose.Schema({
             expiresAt: Number,
         },
     },
+    forgotPasswordToken: String,
     accessWebSocket: {
         token: String,
         createdAt: Number,
         expiresAt: Number,
-    }
+    },
 }));
 
 const BanList = mongoose.model('BanList', new mongoose.Schema({

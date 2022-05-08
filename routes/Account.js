@@ -66,18 +66,68 @@ AccountRouter.route('/resend')
         response.status(200).send('A confirmation link was sent to your E-Mail.');
     });
 
+AccountRouter.route('/forgot')
+    .post(async (request, response) => {
+        let users = await Users.find();
+
+        const { email } = request.body;
+        let userData = users.filter(user => user.email == email)[0];
+        if (!userData) return response.status(400).send('E-Mail is not registered.');
+
+        let forgotPasswordToken = require('crypto').createHash('sha256').update(JSON.stringify(Math.random().toString(16).substring(2))).digest('hex');
+        let user = await Users.findOne({ email });
+        if (!user.email) return response.status(500).send('We could not find that account. Please try again later.');
+        user.forgotPasswordToken = forgotPasswordToken;
+        user.save();
+
+        sendMail(email, `http://localhost:3000/account/reset?token=${user.forgotPasswordToken}`);
+        response.status(200).send('A link to reset your password has been sent to your E-Mail!');
+    });
+
+AccountRouter.route('/reset')
+    .post(async (request, response) => {
+        let users = await Users.find();
+
+        const { password } = request.body;
+
+        const token = request.query.token;
+        const userData = users.filter(user => user.forgotPasswordToken == token)[0];
+        if (!userData) return response.status(400).send('Invalid token.');
+
+        if (!new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})').test(password)) return response.status(400).send('Invalid password. Must have at least one lowercase, uppercase, numerical, and special character and must be more than 8 characters long.');
+
+        const user = await Users.findOne({ _id: userData._id, });
+        delete user.forgotPasswordToken;
+        
+        try {
+            const hashedPw = bcrypt.hashSync(password, 10);
+            const accessToken = require('crypto').createHash('sha256').update(JSON.stringify(`${userData.email} + ${hashedPw} + ${Date.now()}`)).digest('hex');
+
+            user.password = hashedPw;
+            user.accessToken = accessToken;
+            user.forgotPasswordToken = null;
+            user.save();
+
+            response.status(200).send('Password was successfully updated.');
+        } catch (error) {
+            response.status(500).send('There was an issue saving your password. Please try again later.');
+        }
+    });
+
 AccountRouter.route('/register')
     .get(async (request, response) => {
+        let users = await Users.find();
+
         const token = request.query.token;
         if (!token) return response.status(405).send('Cannot GET /register');
 
-        let users = await Users.find();
         let userData = users.filter(user => user.verification.confirmation.token == token)[0];
         if (!userData) return response.status(400).send('Invalid/expired token.');
 
-        const user = await Users.findOne({ _id: userData._id });
-        user.verification = { verified: true };
-        user.save();
+        const user = await Users.findOneAndUpdate({ _id: userData._id }, { verification: { verified: true } }, {
+            new: true,
+            upsert: true,
+        });
 
         response.status(200).send('Your account was successfully verified.')
     })
