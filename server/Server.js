@@ -11,6 +11,7 @@ const queryString = require('query-string');
 // Import routes.
 
 const { AccountRouter } = require('../routes/Account');
+const { ProfileRouter } = require('../routes/Profile');
 
 // Connect to database.
 mongoose.connect(process.env.MONGODB_URI)
@@ -32,7 +33,7 @@ const server = new Server({
 
         const bans = await BanList.find();
 
-        if (bans.includes(ip)) return cb(false, 418, 'Unable to brew coffee.');
+        if (bans.filter(user => user.ip == ip).length) return cb(false, 418, 'Unable to brew coffee.'); 
         if (!request.headers.upgrade ||
             !request.headers.connection ||
             !request.headers.host ||
@@ -43,41 +44,15 @@ const server = new Server({
             !request.headers["accept-encoding"] ||
             !request.headers["accept-language"] ||
             !request.headers["sec-websocket-key"] ||
-            !request.headers["sec-websocket-extensions"]) return cb(false, 418, 'Unable to brew coffee.');
+            !request.headers["sec-websocket-extensions"]
+            || request.headers["user-agent"].includes('headless')) cb(false, 418, 'Unable to brew coffee.');
         cb(true);
     }
 });
 
-// Make tokens expire.
-setInterval(async () => {
-    let users = await Users.find();
-    users.forEach(async userData => {
-        if (Date.now() >= userData.verification?.confirmation?.expiresAt) {
-            const verificationToken = require('crypto').createHash('sha256').update(JSON.stringify(Math.random().toString(16).substring(2))).digest('hex');
-            const user = await Users.findOne({ _id: userData._id  });
-
-            user.verification.confirmation = {
-                token: verificationToken,
-                createdAt: Date.now(),
-                expiresAt: Date.now() + 108e5,
-            }
-            user.save();
-        } else if (Date.now() >= userData.accessWebSocket.expiresAt) {
-            const accessToken = require('crypto').createHash('sha256').update(JSON.stringify(`${userData.email} + ${userData.password} + ${Date.now()}`)).digest('hex');
-            const user = await Users.findOne({ _id: userData._id  });
-
-            user.accessWebSocket = {
-                token: accessToken,
-                createdAt: Date.now(),
-                expiresAt: Date.now() + 432e5,
-            };
-            user.save();
-        }
-    });
-}, 5000);
-
 // Listen to requests.
 app.use('/account', AccountRouter);
+app.use('/profile', ProfileRouter);
 
 app.get('/', function(request, response) {
     response.send('serverside express. client will make requests at this location.');
@@ -111,17 +86,20 @@ server.on('connection', async function(socket, request) {
     socket.path = path;
     socket.params = queryString.parse(params);
     
-    const session = users.filter(user => { return user.accessWebSocket.token == socket.params.token  })[0];
+    const sessionData = users.filter(user => { return user.token == socket.params.token })[0];
 
-    if (!session) {
+    if (!sessionData) {
         socket.send(JSON.stringify({ header: 'AUTHORIZATION_INVALID', data: { message: 'The token provided was invalid.' } }));
         return socket.close();
     }
+
+    let session = await Users.findOne({ _id: sessionData._id, });
+
     socket.ip = request.socket.remoteAddress ||
         request.headers['x-forwarded-for'];
     socket.authorizedLevel = 0;
 
-    fetch(`https://ipqualityscore.com/api/json/ip/ZwS61NRyh2WNRpZrzQLKmMYD5mxhyxUf/${socket.ip}`).then(r => r.json()).then(data => {
+    fetch(`https://ipqualityscore.com/api/json/ip/${process.env.IQS_TOKEN}/${socket.ip}`).then(r => r.json()).then(data => {
         if (data.vpn ||
             data.tor ||
             data.active_vpn ||
@@ -139,6 +117,14 @@ server.on('connection', async function(socket, request) {
         console.error(`Could not detect whether or not IP is a proxy.`, er);
         socket.send(JSON.stringify({ header: 'ACCEPT' }));
         socket.authorizedLevel = 1;
+    });
+
+    session.online = true;
+    session.save();
+
+    socket.on('close', function() {
+        session.online = false;
+        session.save();
     });
 
     socket.on('message', function(data) {

@@ -6,18 +6,13 @@ const Users = mongoose.model('User', new mongoose.Schema({
     password: String,
     verification: {
         verified: Boolean,
-        confirmation: {
-            token: String,
-            createdAt: Number,
-            expiresAt: Number,
-        },
+        token: String,
     },
     forgotPasswordToken: String,
-    accessWebSocket: {
-        token: String,
-        createdAt: Number,
-        expiresAt: Number,
-    },
+    token: String,
+    avatar: String,
+    bio: String,
+    online: Boolean,
 }));
 
 const BanList = mongoose.model('BanList', new mongoose.Schema({

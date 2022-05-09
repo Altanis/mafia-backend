@@ -1,8 +1,9 @@
 const { Router } = require('express');
 const { Users } = require('../db/Models');
-const bcrypt = require('bcrypt');
-const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 const OAuth2Client = new google.auth.OAuth2({
     clientId: process.env.CLIENT_ID,
@@ -39,17 +40,17 @@ const sendMail = (email, url) => {
 
 AccountRouter.route('/login')
     .post(async (request, response) => {
-        let users = await Users.find();
+        const users = await Users.find();
 
         const { email, password } = request.body;
 
-        let user = users.filter(user => user.email == email)[0];
+        const user = users.filter(user => user.email == email)[0];
         if (!user) return response.status(400).send('E-Mail is not registered.');
         if (!user.verification.verified) return response.status(400).send('E-Mail was not verified.');
         if (!bcrypt.compareSync(password, user.password)) return response.status(400).send('An invalid password was provided.');
-        if (!user.accessWebSocket.token) return response.status(500).send('The server could not retrieve your data. Please try again later.');
+        if (!user.token) return response.status(500).send('The server could not retrieve your data. Please try again later.');
 
-        response.status(200).send(user.accessWebSocket.token);
+        response.status(200).send(user.token);
     });
 
 AccountRouter.route('/resend')
@@ -57,25 +58,25 @@ AccountRouter.route('/resend')
         const users = await Users.find();
 
         const { email, password } = request.body;
-        let user = users.filter(user => user.email == email)[0];
+        const user = users.filter(user => user.email == email)[0];
         if (!user) return response.status(400).send('E-Mail is not registered.');
         if (!bcrypt.compareSync(password, user.password)) return response.status(400).send('An invalid password was provided.');
         if (user.verification.verified) return response.status(400).send('You are already verified.');
         
-        sendMail(email, `http://localhost:3000/account/register?token=${user.verification.confirmation.token}`);
+        sendMail(email, `http://localhost:3000/account/register?token=${user.verification.token}`);
         response.status(200).send('A confirmation link was sent to your E-Mail.');
     });
 
 AccountRouter.route('/forgot')
     .post(async (request, response) => {
-        let users = await Users.find();
+        const users = await Users.find();
 
         const { email } = request.body;
-        let userData = users.filter(user => user.email == email)[0];
+        userData = users.filter(user => user.email == email)[0];
         if (!userData) return response.status(400).send('E-Mail is not registered.');
 
-        let forgotPasswordToken = require('crypto').createHash('sha256').update(JSON.stringify(Math.random().toString(16).substring(2))).digest('hex');
-        let user = await Users.findOne({ email });
+        const forgotPasswordToken = crypto.createHash('sha256').update(JSON.stringify(Math.random().toString(16).substring(2))).digest('hex');
+        const user = await Users.findOne({ email });
         if (!user.email) return response.status(500).send('We could not find that account. Please try again later.');
         user.forgotPasswordToken = forgotPasswordToken;
         user.save();
@@ -86,7 +87,7 @@ AccountRouter.route('/forgot')
 
 AccountRouter.route('/reset')
     .post(async (request, response) => {
-        let users = await Users.find();
+        const users = await Users.find();
 
         const { password } = request.body;
 
@@ -101,7 +102,7 @@ AccountRouter.route('/reset')
         
         try {
             const hashedPw = bcrypt.hashSync(password, 10);
-            const accessToken = require('crypto').createHash('sha256').update(JSON.stringify(`${userData.email} + ${hashedPw} + ${Date.now()}`)).digest('hex');
+            const accessToken = crypto.createHash('sha256').update(JSON.stringify(`${userData.email} + ${hashedPw} + ${Date.now()}`)).digest('hex');
 
             user.password = hashedPw;
             user.accessToken = accessToken;
@@ -116,15 +117,15 @@ AccountRouter.route('/reset')
 
 AccountRouter.route('/register')
     .get(async (request, response) => {
-        let users = await Users.find();
+        const users = await Users.find();
 
         const token = request.query.token;
         if (!token) return response.status(405).send('Cannot GET /register');
 
-        let userData = users.filter(user => user.verification.confirmation.token == token)[0];
+        const userData = users.filter(user => user.verification.token == token)[0];
         if (!userData) return response.status(400).send('Invalid/expired token.');
 
-        const user = await Users.findOneAndUpdate({ _id: userData._id }, { verification: { verified: true } }, {
+        await Users.findOneAndUpdate({ _id: userData._id }, { verification: { verified: true } }, {
             new: true,
             upsert: true,
         });
@@ -132,7 +133,7 @@ AccountRouter.route('/register')
         response.status(200).send('Your account was successfully verified.')
     })
     .post(async (request, response) => {
-        let users = await Users.find();
+        const users = await Users.find();
 
         const { username, email, password } = request.body;
 
@@ -141,12 +142,13 @@ AccountRouter.route('/register')
     
         if (users.filter(user => user.email == email)[0]) return response.status(400).send('E-Mail is already registered.');
         if (users.filter(user => user.username == username)[0]) return response.status(400).send('Username is taken.');
+        if (username.length > 32 || username.length < 1) return response.status(400).send('Username is not within bounds 1-32.');
 
         try {
             const hashedPw = bcrypt.hashSync(password, 10);
 
-            const verificationToken = require('crypto').createHash('sha256').update(JSON.stringify(Math.random().toString(16).substring(2))).digest('hex');
-            const accessToken = require('crypto').createHash('sha256').update(JSON.stringify(`${email} + ${hashedPw} + ${Date.now()}`)).digest('hex');
+            const verificationToken = crypto.createHash('sha256').update(JSON.stringify(Math.random().toString(16).substring(2))).digest('hex');
+            const accessToken = crypto.createHash('sha256').update(JSON.stringify(`${email} + ${hashedPw} + ${Date.now()}`)).digest('hex');
 
             const user = new Users({
                 username,
@@ -154,22 +156,17 @@ AccountRouter.route('/register')
                 password: hashedPw,
                 verification: {
                     verified: false,
-                    confirmation: {
-                        token: verificationToken,
-                        createdAt: Date.now(),
-                        expiresAt: Date.now() + 108e5,
-                    },
+                    token: verificationToken,
                 },
-                accessWebSocket: {
-                    token: accessToken,
-                    createdAt: Date.now(),
-                    expiresAt: Date.now() + 432e5,
-                }
+                token: accessToken,
+                avatar: 'https://bolderadvocacy.org/wp-content/uploads/2018/08/blue-icon-question-mark-image.png',
+                bio: 'This user has no biography about themselves.',
+                online: false,
             });
 
             user.save()
                 .then(() => {
-                    let url = `http://localhost:3000/account/register?token=${verificationToken}`;
+                    const url = `http://localhost:3000/account/register?token=${verificationToken}`;
                     sendMail(email, url);
                     response.status(200).send('Account created. Please verify your E-Mail address by the link we sent to your email. If you didn\'t receive it, send a POST request to: http://localhost:3000/account/resend');
                 });
