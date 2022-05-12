@@ -1,64 +1,16 @@
 require('dotenv').config();
 
 // Import modules.
-const { Server } = require('ws');
+const { WebSocketServer } = require('./Base');
 const { Users, BanList } = require('../db/Models');
-const Express = require('express');
-const mongoose = require('mongoose');
 const fetch = require('node-fetch');
+const { httpServer } = require('./ExpressServer');
 const queryString = require('query-string');
 
-// Import routes.
-
-const { AccountRouter } = require('../routes/Account');
-const { ProfileRouter } = require('../routes/Profile');
-
-// Connect to database.
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('MongoDB has loaded.'))
-    .catch(err => console.error('Could not load database: ', err));
-
-// Create servers.
-const app = Express();
-app.use(Express.json());
-app.use(Express.urlencoded({ extended: false } ));
-
-const server = new Server({ 
-    noServer: true,
-    maxPayload: 1e5,
-    async verifyClient(information, cb) {
-        let request = information.req;
-        let ip = request.socket.remoteAddress ||
-            request.headers['x-forwarded-for'];
-
-        const bans = await BanList.find();
-
-        if (bans.filter(user => user.ip == ip).length) return cb(false, 418, 'Unable to brew coffee.'); 
-        if (!request.headers.upgrade ||
-            !request.headers.connection ||
-            !request.headers.host ||
-            !request.headers.pragma ||
-            !request.headers["cache-control"] ||
-            !request.headers["user-agent"] ||
-            !request.headers["sec-websocket-version"] ||
-            !request.headers["accept-encoding"] ||
-            !request.headers["accept-language"] ||
-            !request.headers["sec-websocket-key"] ||
-            !request.headers["sec-websocket-extensions"]
-            || request.headers["user-agent"].includes('headless')) cb(false, 418, 'Unable to brew coffee.');
-        cb(true);
-    }
-});
-
 // Listen to requests.
-app.use('/account', AccountRouter);
-app.use('/profile', ProfileRouter);
+console.log('[WEBSOCKET] Listening on PORT 3000.');
 
-app.get('/', function(request, response) {
-    response.send('serverside express. client will make requests at this location.');
-});
-
-server.on('connection', async function(socket, request) {
+WebSocketServer.on('connection', async function(socket, request) {
     const bans = await BanList.find();
     const users = await Users.find();
 
@@ -93,7 +45,7 @@ server.on('connection', async function(socket, request) {
         return socket.close();
     }
 
-    let session = await Users.findOne({ _id: sessionData._id, });
+    socket.session = await Users.findOne({ _id: sessionData._id, });
 
     socket.ip = request.socket.remoteAddress ||
         request.headers['x-forwarded-for'];
@@ -119,12 +71,12 @@ server.on('connection', async function(socket, request) {
         socket.authorizedLevel = 1;
     });
 
-    session.online = true;
-    session.save();
+    socket.session.online = true;
+    socket.session.save();
 
     socket.on('close', function() {
-        session.online = false;
-        session.save();
+        socket.session.online = true;
+        socket.session.save();
     });
 
     socket.on('message', function(data) {
@@ -147,9 +99,10 @@ server.on('connection', async function(socket, request) {
     });
 });
 
-const httpServer = app.listen(3000, () => console.log('Listening on PORT 3000.'));
 httpServer.on('upgrade', function(req, socket, head) {
-    server.handleUpgrade(req, socket, head, socket => {
-        server.emit('connection', socket, req);
+    WebSocketServer.handleUpgrade(req, socket, head, socket => {
+        WebSocketServer.emit('connection', socket, req);
     });
 });
+
+module.exports = { WebSocketServer };

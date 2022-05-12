@@ -137,6 +137,7 @@ AccountRouter.route('/register')
 
         const { username, email, password } = request.body;
 
+        if (typeof username != 'string' || typeof email != 'string' || typeof password != 'string') return response.status(400).send('Credentials are not of type String.');
         if (!/^\S+@\S+\.\S+$/.test(email)) return response.status(400).send('Invalid E-Mail.');
         if (!new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})').test(password)) return response.status(400).send('Invalid password. Must have at least one lowercase, uppercase, numerical, and special character and must be more than 8 characters long.');
     
@@ -162,6 +163,7 @@ AccountRouter.route('/register')
                 avatar: 'https://bolderadvocacy.org/wp-content/uploads/2018/08/blue-icon-question-mark-image.png',
                 bio: 'This user has no biography about themselves.',
                 online: false,
+                activeGames: [],
             });
 
             user.save()

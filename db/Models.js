@@ -13,10 +13,22 @@ const Users = mongoose.model('User', new mongoose.Schema({
     avatar: String,
     bio: String,
     online: Boolean,
+    activeGames: [Object]
 }));
 
 const BanList = mongoose.model('BanList', new mongoose.Schema({
     ip: String,
 }));
 
-module.exports = { Users, BanList };
+const Lobbies = mongoose.model('Lobbies', new mongoose.Schema({
+    id: String,
+    setup: [String],
+    players: {
+        current: [Object],
+        required: Number,
+    },
+    creator: String,
+    status: String,
+}));
+
+module.exports = { Users, BanList, Lobbies };

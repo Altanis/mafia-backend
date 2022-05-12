@@ -14,10 +14,16 @@ To Do List:
    - [x] Create Online indicator.
    - [x] Create an Biography and Avatar.
    - [x] Update Username, Avatar, or Biography.
+- [ ] Create a lobby system to join different setups.
+   - [] List all lobbies.
+   - [] Create a lobby.
+   - [] Join a lobby.
+   - [] Leave a lobby.
+   - [] Chat when waiting for players to fill up.
+   - [] Check when lobby fills.
+- [ ] Create a chat system for players to communicate to other people.
 - [ ] Create basic Mafia roles (Mafia, Roleblocker, Villager, Cop, Doctor, Gunsmith).
 - [ ] Create a system where you can share setups (example 2 Mafias and 5 Villagers, or 2 Mafias 4 Villagers 1 Cop).
-- [ ] Create a lobby system to join different setups.
-- [ ] Create a chat system for players to communicate to other people.
 - [ ] Create special abilities for roles (Mafia to kill, Cop to investigate, Doctor to save, Gunsmith to give Gun, etc).
 - [ ] Assign random roles to players.
 - [ ] Create phases and a timer to signify when to end each phase.
