@@ -3,6 +3,8 @@
 This project is a WIP and is not fully finished yet.
 This will implement a previous project I was working on ([see here](https://github.com/CoderSudaWuda/chat-backend)) for players to communicate to eachother.
 
+*The current push has not been tested and may cause errors. It will be fully tested at a later date.*
+
 To Do List:
 - [x] Create a registration system with email verification.
    - [x] Create registration system.
@@ -14,13 +16,13 @@ To Do List:
    - [x] Create Online indicator.
    - [x] Create an Biography and Avatar.
    - [x] Update Username, Avatar, or Biography.
-- [ ] Create a lobby system to join different setups.
-   - [] List all lobbies.
-   - [] Create a lobby.
-   - [] Join a lobby.
-   - [] Leave a lobby.
+- [x] Create a lobby system to join different setups.
+   - [x] List all lobbies.
+   - [x] Create a lobby.
+   - [x] Join a lobby.
+   - [x] Leave a lobby.
+   - [x] Check when lobby fills.
    - [] Chat when waiting for players to fill up.
-   - [] Check when lobby fills.
 - [ ] Create a chat system for players to communicate to other people.
 - [ ] Create basic Mafia roles (Mafia, Roleblocker, Villager, Cop, Doctor, Gunsmith).
 - [ ] Create a system where you can share setups (example 2 Mafias and 5 Villagers, or 2 Mafias 4 Villagers 1 Cop).
