@@ -97,7 +97,7 @@ AccountRouter.route('/reset')
 
         if (!new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})').test(password)) return response.status(400).send('Invalid password. Must have at least one lowercase, uppercase, numerical, and special character and must be more than 8 characters long.');
 
-        const user = await Users.findOne({ _id: userData._id, });
+        const user = await Users.findById(userData._id);
         delete user.forgotPasswordToken;
         
         try {
@@ -164,6 +164,7 @@ AccountRouter.route('/register')
                 bio: 'This user has no biography about themselves.',
                 online: false,
                 activeGames: [],
+                messageCooldown: 0,
             });
 
             user.save()

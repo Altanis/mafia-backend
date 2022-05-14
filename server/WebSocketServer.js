@@ -2,7 +2,7 @@ require('dotenv').config();
 
 // Import modules.
 const { WebSocketServer } = require('./Base');
-const { Users, BanList } = require('../db/Models');
+const { Users, BanList, Lobbies } = require('../db/Models');
 const fetch = require('node-fetch');
 const { httpServer } = require('./ExpressServer');
 const queryString = require('query-string');
@@ -45,7 +45,7 @@ WebSocketServer.on('connection', async function(socket, request) {
         return socket.close();
     }
 
-    socket.session = await Users.findOne({ _id: sessionData._id, });
+    socket.session = await Users.findById(sessionData._id);
 
     socket.ip = request.socket.remoteAddress ||
         request.headers['x-forwarded-for'];
@@ -74,13 +74,17 @@ WebSocketServer.on('connection', async function(socket, request) {
     socket.session.online = true;
     socket.session.save();
 
+    socket.messageCooldownInterval = setInterval(() => {
+        if (socket.session.messageCooldown > 0) socket.session.messageCooldown -= 1;
+    }, 1000);
+
     socket.on('close', function() {
-        socket.session.online = true;
+        socket.session.online = false;
         socket.session.save();
     });
 
-    socket.on('message', function(data) {
-        if (!socket.authroizedLevel) return socket.send(JSON.stringify({ header: 'PACKET_REJECT', data: { message: 'Please wait for the server to finish verifying whether or not a proxy is being used.' } }));
+    socket.on('message', async function(data) {
+        if (!socket.authorizedLevel) return socket.send(JSON.stringify({ header: 'PACKET_REJECT', data: { message: 'Please wait for the server to finish verifying whether or not a proxy is being used.' } }));
 
         try {
             data = JSON.parse(data);
@@ -94,6 +98,27 @@ WebSocketServer.on('connection', async function(socket, request) {
             case 'PING': {
                 socket.send(JSON.stringify({ header: 'PONG' }));
                 break;
+            }
+            case 'SEND_MESSAGE': {
+                socket.session.messageCooldown++;
+                if (socket.session.messageCooldown >= 3) return socket.send(JSON.stringify({ header: 'RATELIMIT', data: { message: `Please wait ${socket.session.messageCooldown} seconds to send another message.` } }));
+
+                const { message } = data;
+                if (typeof message != 'string') return socket.ban();
+
+                const lobby = await Lobbies.findOne({ id: socket.session.activeGames[0], });
+                if (!lobby) return socket.send(JSON.stringify({ header: 'INVALID_LOBBY', data: { message: 'Invalid Lobby ID.' } }));
+                if (message.length > 500 || message.length < 1) return socket.send(JSON.stringify({ header: 'INVALID_MESSAGE', data: { message: 'Message length must be within bounds of 1-500.' } })); 
+
+                if (message.includes('nig') && !message.includes('night')) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Your message contained a slur. Please refrain from sending them.' } }));
+                ['fag', 'jew', 'retard'].map(slur => {
+                    if (message.includes(slur)) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Your message contained a slur. Please refrain from sending them.' } }));
+                });
+
+                WebSocketServer.brodcast(JSON.stringify({
+                    header: 'RECV_MESSAGE',
+                    message,
+                }), client => client.session.activeGames.includes(lobby.id));
             }
         }
     });

@@ -9,7 +9,8 @@ const Timeouts = {};
 LobbyRouter.route('/pages')
     .get(async (_, response) => {
         const lobbies = await Lobbies.find();
-        response.status(200).send((Math.ceil(lobbies.length / 10) - 1).toString());
+        const pages = Math.ceil(lobbies.length / 10);
+        response.status(200).send((pages == 0 ? 0 : pages - 1).toString());
     });
 
 LobbyRouter.route('/create')
@@ -23,7 +24,7 @@ LobbyRouter.route('/create')
         if (!userData) return response.status(400).send('Invalid token.');
         if (userData.activeGames.length) return response.status(403).send('You are already in a game.');
 
-        const user = await Users.findOne({ _id: userData._id, });
+        const user = await Users.findById(userData._id);
         const lobbyID = crypto.randomBytes(16).toString('hex');
 
         const lobby = new Lobbies({
@@ -61,7 +62,7 @@ LobbyRouter.route('/join')
         if (!userData) return response.status(400).send('Invalid token.');
         if (userData.activeGames.length) return response.status(403).send('You are already in a game.');
 
-        const user = await Users.findOne({ _id: userData._id, });
+        const user = await Users.findById(userData._id);
 
         const lobbyData = lobbies.filter(lobby => lobby.id == id)[0];
         if (!lobbyData) return response.status(400).send('Invalid Lobby ID.');
@@ -121,7 +122,7 @@ LobbyRouter.route('/leave')
         if (!userData) return response.status(400).send('Invalid token.');
         if (!userData.activeGames.length) return response.status(400).send('You are not in a game.');
 
-        const user = await Users.findOne({ _id: userData._id, });
+        const user = await Users.findById(userData._id);
 
         const lobbyData = lobbies.filter(lobby => lobby.id == id)[0];
         if (!lobbyData) return response.status(400).send('Invalid Lobby ID.');

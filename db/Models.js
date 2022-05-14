@@ -13,7 +13,8 @@ const Users = mongoose.model('User', new mongoose.Schema({
     avatar: String,
     bio: String,
     online: Boolean,
-    activeGames: [Object],
+    activeGames: [String],
+    messageCooldown: Number,
 }));
 
 const BanList = mongoose.model('BanList', new mongoose.Schema({

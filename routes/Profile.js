@@ -56,7 +56,7 @@ ProfileRouter.route('/update')
         const [ isValid, reason ] = await valid(type, value);
         if (!isValid) return response.status(400).send(reason);
 
-        const user = await Users.findOne({ _id: userData._id });
+        const user = await Users.findById(userData._id);
         user[type] = value;
         await user.save();
         response.status(200).send('Successfully updated profile!');

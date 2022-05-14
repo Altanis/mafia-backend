@@ -1,4 +1,5 @@
 // Import modules.
+const { Users } = require('../db/Models');
 const { ExpressApp } = require('./Base');
 
 // Import routes.
