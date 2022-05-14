@@ -46,7 +46,6 @@ const WebSocketServer = new Server({
 });
 
 WebSocketServer.brodcast = function(message, filter) {
-    console.log('hi');
     if (typeof message != 'string') throw new TypeError('Parameter message is not of type String.');
     const clients = [...this.clients].filter(filter);
 

@@ -13,7 +13,7 @@ const Users = mongoose.model('User', new mongoose.Schema({
     avatar: String,
     bio: String,
     online: Boolean,
-    activeGames: [Object]
+    activeGames: [Object],
 }));
 
 const BanList = mongoose.model('BanList', new mongoose.Schema({
@@ -28,7 +28,8 @@ const Lobbies = mongoose.model('Lobbies', new mongoose.Schema({
         required: Number,
     },
     creator: String,
-    status: String,
+    phase: String,
+    ranked: Boolean,
 }));
 
 module.exports = { Users, BanList, Lobbies };

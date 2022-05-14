@@ -9,7 +9,7 @@ const Timeouts = {};
 LobbyRouter.route('/pages')
     .get(async (_, response) => {
         const lobbies = await Lobbies.find();
-        response.status(200).send(Math.ceil(lobbies.length / 10).toString());
+        response.status(200).send((Math.ceil(lobbies.length / 10) - 1).toString());
     });
 
 LobbyRouter.route('/create')
@@ -38,6 +38,7 @@ LobbyRouter.route('/create')
             },
             creator: userData.username,
             phase: 'Waiting...',
+            ranked: true, // Toggle later.
         });
         lobby.save()
             .then(() => {
@@ -78,14 +79,15 @@ LobbyRouter.route('/join')
             }), client => client.session.activeGames.includes(lobbyData.id));
 
             Timeouts[lobbyData.id] = setTimeout(() => {
-                lobby.phase = 'Started.';
+                lobby.phase = 'Night 1'; // Day 1 will be an option.
                 WebSocketServer.brodcast(JSON.stringify({
                     header: 'GAME_PHASE',
                     lobby: lobbyData.id,
                     phase: lobby.phase,
                 }), client => client.session.activeGames.includes(lobbyData.id));
 
-                Timeouts[lobbyData.id] = 'done';
+                lobby.save().catch(er => console.error('Error when saving Lobby data:', er));
+                delete Timeouts[lobbyData.id];
             }, 10000);
         }
 
@@ -131,8 +133,11 @@ LobbyRouter.route('/leave')
         lobby.players.current.splice(playerIndex, 1);
 
         let suicide = false;
+        if (lobby.phase.toLowerCase().includes('day') || lobby.phase.toLowerCase().includes('night')) {
+            lobby.ranked = false;
+            suicide = true;
+        }
 
-        if (Timeouts[lobbyData.id] == 'done') suicide = true;  
         if (lobby.players.current.length == 0) {
             Lobbies.deleteOne({ _id: lobbyData._id })
                 .then(() =>  {
