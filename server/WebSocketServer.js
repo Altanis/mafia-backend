@@ -110,10 +110,14 @@ WebSocketServer.on('connection', async function(socket, request) {
                 if (!lobby) return socket.send(JSON.stringify({ header: 'INVALID_LOBBY', data: { message: 'Invalid Lobby ID.' } }));
                 if (message.length > 500 || message.length < 1) return socket.send(JSON.stringify({ header: 'INVALID_MESSAGE', data: { message: 'Message length must be within bounds of 1-500.' } })); 
 
+                let pass = false;
+
                 if (message.includes('nig') && !message.includes('night')) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Your message contained a slur. Please refrain from sending them.' } }));
                 ['fag', 'jew', 'retard'].map(slur => {
-                    if (message.includes(slur)) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Your message contained a slur. Please refrain from sending them.' } }));
+                    if (message.includes(slur)) return pass = false;
                 });
+
+                if (pass) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Your message contained a slur. Please refrain from sending them.' } }));
 
                 WebSocketServer.brodcast(JSON.stringify({
                     header: 'RECV_MESSAGE',

@@ -23,7 +23,7 @@ const BanList = mongoose.model('BanList', new mongoose.Schema({
 
 const Lobbies = mongoose.model('Lobbies', new mongoose.Schema({
     id: String,
-    setup: [String],
+    setup: Object,
     players: {
         current: [Object],
         required: Number,

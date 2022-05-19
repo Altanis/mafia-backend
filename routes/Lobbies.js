@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { Users, Lobbies } = require('../db/Models');
 const { WebSocketServer } = require('../server/Base');
+const Validator = require('../engine/setups/Validator');
 const crypto = require('crypto');
 
 const LobbyRouter = Router();
@@ -17,29 +18,32 @@ LobbyRouter.route('/create')
     .post(async (request, response) => {
         const users = await Users.find();
 
-        const { token, setup } = request.body;
+        let { token, setup, ranked } = request.body;
 
-        if  (!Array.isArray(setup)) return response.status(400).send('Setup is not of type Array.');
+        if (typeof Validator(setup) == 'string') return response.status(400).send(Validator(setup));
         const userData = users.filter(user => user.token == token)[0];
         if (!userData) return response.status(400).send('Invalid token.');
         if (userData.activeGames.length) return response.status(403).send('You are already in a game.');
+        if (typeof ranked != 'boolean') ranked = false;
 
         const user = await Users.findById(userData._id);
         const lobbyID = crypto.randomBytes(16).toString('hex');
 
         const lobby = new Lobbies({
             id: lobbyID,
-            setup: setup,
+            setup,
             players: {
                 current: [{
                     username: userData.username,
                     avatar: userData.avatar,
+                    role: '',
+                    dead: false,
                 }],
-                required: setup.length,
+                required: setup.roles.length,
             },
             creator: userData.username,
             phase: 'Waiting...',
-            ranked: true, // Toggle later.
+            ranked,
         });
         lobby.save()
             .then(() => {
@@ -69,7 +73,9 @@ LobbyRouter.route('/join')
         if (lobbyData.players.current.length >= lobbyData.players.required || lobbyData.started) return response.status(400).send('Lobby is filled.');
         const lobby = await Lobbies.findOne({ _id: lobbyData._id, });
 
-        lobby.players.current.push({ username: userData.username, avatar: userData.avatar });
+        lobby.players.current.push({ username: userData.username, avatar: userData.avatar, role: '', dead: false, });
+
+        console.log(lobby.players);
 
         if (lobby.players.current.length >= lobby.players.required) {
             lobby.phase = 'Starting...';
@@ -77,10 +83,10 @@ LobbyRouter.route('/join')
                 header: 'GAME_PHASE',
                 lobby: lobbyData.id,
                 phase: lobby.phase,
-            }), client => client.session.activeGames.includes(lobbyData.id));
+            }), client => client.session.activeGames.includes(lobbyData.id) || client.session.token == token);
 
             Timeouts[lobbyData.id] = setTimeout(() => {
-                lobby.phase = 'Night 1'; // Day 1 will be an option.
+                lobby.phase = lobby.setup.phase.toLowerCase() == 'night' ? 'Night 1' : 'Day 1';
                 WebSocketServer.brodcast(JSON.stringify({
                     header: 'GAME_PHASE',
                     lobby: lobbyData.id,
@@ -88,6 +94,7 @@ LobbyRouter.route('/join')
                 }), client => client.session.activeGames.includes(lobbyData.id));
 
                 lobby.save().catch(er => console.error('Error when saving Lobby data:', er));
+                require(`../engine/game/${lobby.phase.split(' ')[0]}`)(WebSocketServer, lobby, true);
                 delete Timeouts[lobbyData.id];
             }, 10000);
         }
@@ -182,6 +189,13 @@ LobbyRouter.route('/:page')
             lobbiesSpliced.push(lobbies.splice(0, 10));
         }
         lobbiesSpliced = lobbiesSpliced.reverse();
+        lobbiesSpliced.map(lobbies => {
+            return lobbies.map(lobby => {
+                return lobby.players.current.map(player => {
+                    return { username: player.username, avatar: player.avatar };
+                });
+            });
+        });
 
         if (!lobbiesSpliced[0] && page == 0) return response.status(200).json([]);
         if (!Array.isArray(lobbiesSpliced[page])) return response.status(400).send(`Page must be within bounds 0-${lobbiesSpliced.length}.`);

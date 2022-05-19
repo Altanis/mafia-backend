@@ -1,0 +1,67 @@
+{
+    "roles": {
+        "Villager": {
+            "alignment": "Town",
+            "meetings": ["Town"],
+            "ability": null
+        },
+        "Cop": {
+            "alignment": "Town",
+            "meetings": ["Town"],
+            "ability": {
+                "type": "investigate",
+                "target": "rest"
+            }
+        },
+        "Doctor": {
+            "alignment": "Town",
+            "meetings": ["Town"],
+            "ability": {
+                "type": "save",
+                "target": "all"
+            }
+        },
+        "Gunsmith": {
+            "alignment": "Town",
+            "meetings": ["Town"],
+            "ability": {
+                "type": "arm",
+                "target": "rest"
+            }
+        },
+        "Mafia": {
+            "alignment": "Mafia",
+            "meetings": ["Town", "Mafia"],
+            "ability": null
+        },
+        "Roleblocker": {
+            "alignment": "Mafia",
+            "meetings": ["Town", "Mafia"],
+            "ability": null
+        }
+    },
+    "phases": {
+        "Day": {
+            "time": 3e5
+        },
+        "Night": {
+            "time": 9e4
+        }
+    },
+    "meetings": {
+        "Town": {
+            "vote": true,
+            "result": "kill"
+        },
+        "Mafia": {
+            "vote": true,
+            "result": "kill"
+        }
+    },
+    "items": {
+        "Gun": {
+            "anonymous": 0.5,
+            "effect": "kill"
+        }
+    }
+}

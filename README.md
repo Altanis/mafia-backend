@@ -20,7 +20,7 @@ To Do List:
    - [x] Join a lobby.
    - [x] Leave a lobby.
    - [x] Check when lobby fills.
-   - [ ] Chat when waiting for players to fill up.
+   - [x] Chat when waiting for players to fill up.
 - [ ] Create a chat system for players to communicate to other people.
 - [ ] Create basic Mafia roles (Mafia, Roleblocker, Villager, Cop, Doctor, Gunsmith).
 - [ ] Create a system where you can share setups (example 2 Mafias and 5 Villagers, or 2 Mafias 4 Villagers 1 Cop).
