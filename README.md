@@ -21,8 +21,25 @@ To Do List:
    - [x] Leave a lobby.
    - [x] Check when lobby fills.
    - [x] Chat when waiting for players to fill up.
-- [ ] Create a chat system for players to communicate to other people.
-- [ ] Create basic Mafia roles (Mafia, Roleblocker, Villager, Cop, Doctor, Gunsmith).
+- [ ] Create a Mafia Game.
+   - [ ] Roles
+      - [x] Assign roles.
+      - [x] Create JSON format of how roles should work.
+      - [ ] Implement role typings and make them funcitonal.
+   - [ ] Phases
+      - [ ] Create a functional Night and Day phase.
+      - [ ] Make specific parties able to talk to eachother during the day.
+      - [ ] Give Mafia ability to vote a player to murder.
+      - [ ] Give Town ability to vote a player to lynch.
+      - [ ] Add a timer to lobbies.
+   - [ ] Items
+      - [ ] Create a JSON format of how items should work.
+      - [ ] Implement item typings and make them functional.
+   - [ ] Create a Win Condition.
+      - [ ] Create a Win Condition for both Town and Mafia.
+- [ ] Create a competition system.
+   - [ ] Give "points" to people who win for their party.
+   - [ ] Give prizes for different point counts (after 10,000 points rainbow text for a week, etc)
 - [ ] Create a system where you can share setups (example 2 Mafias and 5 Villagers, or 2 Mafias 4 Villagers 1 Cop).
 - [ ] Create special abilities for roles (Mafia to kill, Cop to investigate, Doctor to save, Gunsmith to give Gun, etc).
 - [ ] Assign random roles to players.
