@@ -41,12 +41,7 @@ To Do List:
    - [ ] Give "points" to people who win for their party.
    - [ ] Give prizes for different point counts (after 10,000 points rainbow text for a week, etc)
 - [ ] Create a system where you can share setups (example 2 Mafias and 5 Villagers, or 2 Mafias 4 Villagers 1 Cop).
-- [ ] Create special abilities for roles (Mafia to kill, Cop to investigate, Doctor to save, Gunsmith to give Gun, etc).
-- [ ] Assign random roles to players.
-- [ ] Create phases and a timer to signify when to end each phase.
-- [ ] Create a voting system for town to decide who to lynch.
 - [ ] Create more complicated roles based off of EpicMafia (Oracle, Bomb, Sheriff, Lawyer, Stalker, etc).
-- [ ] Create options for setups (Daystart, Timers).
 
 **More complicated systems will be implemented later.**
 
