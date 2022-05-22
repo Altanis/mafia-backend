@@ -1,5 +1,3 @@
-// TODO: Reimplement lobby start, fix /leave.
-
 require('dotenv').config();
 
 // Import modules.

@@ -44,7 +44,7 @@ AccountRouter.route('/login')
 
         const { email, password } = request.body;
 
-        const user = users.filter(user => user.email == email)[0];
+        const user = users.find(user => user.email == email);
         if (!user) return response.status(400).send('E-Mail is not registered.');
         if (!user.verification.verified) return response.status(400).send('E-Mail was not verified.');
         if (!bcrypt.compareSync(password, user.password)) return response.status(400).send('An invalid password was provided.');
@@ -58,7 +58,7 @@ AccountRouter.route('/resend')
         const users = await Users.find();
 
         const { email, password } = request.body;
-        const user = users.filter(user => user.email == email)[0];
+        const user = users.find(user => user.email == email);
         if (!user) return response.status(400).send('E-Mail is not registered.');
         if (!bcrypt.compareSync(password, user.password)) return response.status(400).send('An invalid password was provided.');
         if (user.verification.verified) return response.status(400).send('You are already verified.');
@@ -72,7 +72,7 @@ AccountRouter.route('/forgot')
         const users = await Users.find();
 
         const { email } = request.body;
-        userData = users.filter(user => user.email == email)[0];
+        userData = users.find(user => user.email == email);
         if (!userData) return response.status(400).send('E-Mail is not registered.');
 
         const forgotPasswordToken = crypto.createHash('sha256').update(JSON.stringify(Math.random().toString(16).substring(2))).digest('hex');
@@ -92,7 +92,7 @@ AccountRouter.route('/reset')
         const { password } = request.body;
 
         const token = request.query.token;
-        const userData = users.filter(user => user.forgotPasswordToken == token)[0];
+        const userData = users.find(user => user.forgotPasswordToken == token);
         if (!userData) return response.status(400).send('Invalid token.');
 
         if (!new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})').test(password)) return response.status(400).send('Invalid password. Must have at least one lowercase, uppercase, numerical, and special character and must be more than 8 characters long.');
@@ -122,7 +122,7 @@ AccountRouter.route('/register')
         const token = request.query.token;
         if (!token) return response.status(405).send('Cannot GET /register');
 
-        const userData = users.filter(user => user.verification.token == token)[0];
+        const userData = users.find(user => user.verification.token == token);
         if (!userData) return response.status(400).send('Invalid/expired token.');
 
         await Users.findOneAndUpdate({ _id: userData._id }, { verification: { verified: true } }, {
@@ -141,8 +141,8 @@ AccountRouter.route('/register')
         if (!/^\S+@\S+\.\S+$/.test(email)) return response.status(400).send('Invalid E-Mail.');
         if (!new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})').test(password)) return response.status(400).send('Invalid password. Must have at least one lowercase, uppercase, numerical, and special character and must be more than 8 characters long.');
     
-        if (users.filter(user => user.email == email)[0]) return response.status(400).send('E-Mail is already registered.');
-        if (users.filter(user => user.username == username)[0]) return response.status(400).send('Username is taken.');
+        if (users.find(user => user.email == email)) return response.status(400).send('E-Mail is already registered.');
+        if (users.find(user => user.username == username)) return response.status(400).send('Username is taken.');
         if (username.length > 32 || username.length < 1) return response.status(400).send('Username is not within bounds 1-32.');
 
         try {

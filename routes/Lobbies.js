@@ -21,10 +21,10 @@ LobbyRouter.route('/create')
         let { token, setup, ranked } = request.body;
 
         if (typeof Validator(setup) == 'string') return response.status(400).send(Validator(setup));
-        const userData = users.filter(user => user.token == token)[0];
+        const userData = users.find(user => user.token == token);
         if (!userData) return response.status(400).send('Invalid token.');
         if (userData.activeGames.length) return response.status(403).send('You are already in a game.');
-        if (typeof ranked != 'boolean') ranked = false;
+        if (typeof ranked != 'boolean') ranked = true;
 
         const user = await Users.findById(userData._id);
         const lobbyID = crypto.randomBytes(16).toString('hex');
@@ -44,6 +44,7 @@ LobbyRouter.route('/create')
             creator: userData.username,
             phase: 'Waiting...',
             ranked,
+            started: false,
         });
         lobby.save()
             .then(() => {
@@ -61,21 +62,20 @@ LobbyRouter.route('/join')
         const lobbies = await Lobbies.find();
 
         const { token, id } = request.body;
-        
-        const userData = users.filter(user => user.token == token)[0];
+
+        const userData = users.find(user => user.token == token);
         if (!userData) return response.status(400).send('Invalid token.');
         if (userData.activeGames.length) return response.status(403).send('You are already in a game.');
 
         const user = await Users.findById(userData._id);
 
-        const lobbyData = lobbies.filter(lobby => lobby.id == id)[0];
+        const lobbyData = lobbies.find(lobby => lobby.id == id);
         if (!lobbyData) return response.status(400).send('Invalid Lobby ID.');
-        if (lobbyData.players.current.length >= lobbyData.players.required || lobbyData.started) return response.status(400).send('Lobby is filled.');
+        // if (lobbyData.started) return response.status(400).send('This game has already started!');
+        if (lobbyData.players.current.length >= lobbyData.players.required/* || lobbyData.started*/) return response.status(400).send('Lobby is filled.');
         const lobby = await Lobbies.findOne({ _id: lobbyData._id, });
 
         lobby.players.current.push({ username: userData.username, avatar: userData.avatar, role: '', dead: false, });
-
-        console.log(lobby.players);
 
         if (lobby.players.current.length >= lobby.players.required) {
             lobby.phase = 'Starting...';
@@ -86,6 +86,8 @@ LobbyRouter.route('/join')
             }), client => client.session.activeGames.includes(lobbyData.id) || client.session.token == token);
 
             Timeouts[lobbyData.id] = setTimeout(() => {
+                lobby.started = true;
+
                 lobby.phase = lobby.setup.phase.toLowerCase() == 'night' ? 'Night 1' : 'Day 1';
                 WebSocketServer.brodcast(JSON.stringify({
                     header: 'GAME_PHASE',
@@ -93,8 +95,10 @@ LobbyRouter.route('/join')
                     phase: lobby.phase,
                 }), client => client.session.activeGames.includes(lobbyData.id));
 
-                lobby.save().catch(er => console.error('Error when saving Lobby data:', er));
-                require(`../engine/game/${lobby.phase.split(' ')[0]}`)(WebSocketServer, lobby, true);
+                lobby.save()
+                    .then(() => require(`../engine/game/${lobby.phase.split(' ')[0]}`)(WebSocketServer, lobbyData, true))
+                    .catch(er => console.error('Error when saving Lobby data:', er));
+
                 delete Timeouts[lobbyData.id];
             }, 10000);
         }
@@ -125,13 +129,13 @@ LobbyRouter.route('/leave')
 
         const { token, id } = request.body;
         
-        const userData = users.filter(user => user.token == token)[0];
+        const userData = users.find(user => user.token == token);
         if (!userData) return response.status(400).send('Invalid token.');
         if (!userData.activeGames.length) return response.status(400).send('You are not in a game.');
 
         const user = await Users.findById(userData._id);
 
-        const lobbyData = lobbies.filter(lobby => lobby.id == id)[0];
+        const lobbyData = lobbies.find(lobby => lobby.id == id);
         if (!lobbyData) return response.status(400).send('Invalid Lobby ID.');
         const lobby = await Lobbies.findOne({ _id: lobbyData._id, });
 
@@ -141,7 +145,7 @@ LobbyRouter.route('/leave')
         lobby.players.current.splice(playerIndex, 1);
 
         let suicide = false;
-        if (lobby.phase.toLowerCase().includes('day') || lobby.phase.toLowerCase().includes('night')) {
+        if (lobby.ranked && lobby.phase.toLowerCase().includes('day') || lobby.phase.toLowerCase().includes('night')) {
             lobby.ranked = false;
             suicide = true;
         }
@@ -189,10 +193,11 @@ LobbyRouter.route('/:page')
             lobbiesSpliced.push(lobbies.splice(0, 10));
         }
         lobbiesSpliced = lobbiesSpliced.reverse();
-        lobbiesSpliced.map(lobbies => {
-            return lobbies.map(lobby => {
-                return lobby.players.current.map(player => {
-                    return { username: player.username, avatar: player.avatar };
+        lobbiesSpliced.forEach(lobbies => {
+            lobbies.forEach(l => {                
+                l.players.current.map(player => {
+                    delete player.role;
+                    delete player.dead;
                 });
             });
         });

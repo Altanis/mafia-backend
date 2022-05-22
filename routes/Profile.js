@@ -37,7 +37,7 @@ ProfileRouter.route('/:name')
         const { name } = request.params;
         if (!name) return response.status(400).send('Specify a username.');
 
-        const user = users.filter(user => user.username == name)[0];
+        const user = users.find(user => user.username == name);
         if (!user) return response.status(400).send('Invalid username.');
 
         const { username, avatar, bio, online } = user;
@@ -49,7 +49,7 @@ ProfileRouter.route('/update')
         const users = await Users.find();
 
         const { token, type, value } = request.body;
-        const userData = users.filter(user => user.token == token)[0];
+        const userData = users.find(user => user.token == token);
         if (!userData) return response.status(400).send('Invalid authorization code provided.');
         if (!['avatar', 'bio', 'username'].includes(type)) return response.status(400).send('Invalid part of profile provided.');
         

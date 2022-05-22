@@ -1,11 +1,13 @@
+// @ts-nocheck
 require('dotenv').config();
 
 // Import modules.
 const { WebSocketServer } = require('./Base');
 const { Users, BanList, Lobbies } = require('../db/Models');
-const fetch = require('node-fetch');
 const { httpServer } = require('./ExpressServer');
+const Types = require('../engine/types/types.json');
 const queryString = require('query-string');
+const fetch = require('node-fetch');
 
 // Listen to requests.
 console.log('[WEBSOCKET] Listening on PORT 3000.');
@@ -27,7 +29,7 @@ WebSocketServer.on('connection', async function(socket, request) {
             });
     };
 
-    if (bans.filter(user => { return user.ip == socket.ip })[0]) return socket.close();
+    if (bans.find(user => { return user.ip == socket.ip })) return socket.close();
 
     if (!request.url) {
         socket.send(JSON.stringify({ header: 'AUTHORIZATION_INVALID', data: { message: 'The token was unable to be found.' } }));
@@ -38,7 +40,7 @@ WebSocketServer.on('connection', async function(socket, request) {
     socket.path = path;
     socket.params = queryString.parse(params);
     
-    const sessionData = users.filter(user => { return user.token == socket.params.token })[0];
+    const sessionData = users.find(user => { return user.token == socket.params.token });
 
     if (!sessionData) {
         socket.send(JSON.stringify({ header: 'AUTHORIZATION_INVALID', data: { message: 'The token provided was invalid.' } }));
@@ -74,11 +76,18 @@ WebSocketServer.on('connection', async function(socket, request) {
     socket.session.online = true;
     socket.session.save();
 
+    socket.receiveSession = setInterval(async () => {
+        socket.session = await Users.findById(sessionData._id);
+    }, 1000);
+
     socket.messageCooldownInterval = setInterval(() => {
         if (socket.session.messageCooldown > 0) socket.session.messageCooldown -= 1;
     }, 1000);
 
     socket.on('close', function() {
+        clearInterval(socket.receiveSession);
+        clearInterval(socket.messageCooldownInterval);
+
         socket.session.online = false;
         socket.session.save();
     });
@@ -100,15 +109,19 @@ WebSocketServer.on('connection', async function(socket, request) {
                 break;
             }
             case 'SEND_MESSAGE': {
+                socket.session = await Users.findById(sessionData._id);
+
                 socket.session.messageCooldown++;
-                if (socket.session.messageCooldown >= 3) return socket.send(JSON.stringify({ header: 'RATELIMIT', data: { message: `Please wait ${socket.session.messageCooldown} seconds to send another message.` } }));
+                if (socket.session.messageCooldown >= 3) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: `Please wait ${socket.session.messageCooldown} seconds to send another message.` } }));
 
                 const { message } = data;
                 if (typeof message != 'string') return socket.ban();
 
                 const lobby = await Lobbies.findOne({ id: socket.session.activeGames[0], });
+                console.log(JSON.stringify(lobby));
+
                 if (!lobby) return socket.send(JSON.stringify({ header: 'INVALID_LOBBY', data: { message: 'Invalid Lobby ID.' } }));
-                if (message.length > 500 || message.length < 1) return socket.send(JSON.stringify({ header: 'INVALID_MESSAGE', data: { message: 'Message length must be within bounds of 1-500.' } })); 
+                if (message.length > 500 || message.length < 1) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Message length must be within bounds of 1-500.' } })); 
 
                 let pass = false;
 
@@ -119,10 +132,44 @@ WebSocketServer.on('connection', async function(socket, request) {
 
                 if (pass) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Your message contained a slur. Please refrain from sending them.' } }));
 
+                const clients = [...WebSocketServer.clients].filter(async client => {
+                    if (client.session.activeGames[0] != lobby.id) return false;
+                    
+                    const player = lobby.players.current.find(player => player.username == client.session.username);
+                    console.log(player);
+
+                    if (lobby.phase.includes('Night')) {
+                        if (Types.roles[player.role]?.alignment != 'Mafia') return false; // Will change this later if separate types of messages can be sent by a role.
+                    }
+                });
+
+                clients.forEach(client => {
+                    client.send(JSON.stringify({
+                        header: 'RECV_MESSAGE',
+                        message,
+                    }));
+                });
+
+                lobby.messages.push({
+                    message,
+                    phase: lobby.phase,
+                    room: lobby.phase.includes('Night') ? 'Mafia' : 'Town',
+                });
+
+                lobby.save().catch(er => console.error('Could not save message. Error:', er));
+                
+
+                /*let filter = client => client.session.activeGames.includes(lobby.id);
+                if (lobby.phase.includes('Night')) {
+                    const player = lobby.players.current.find(player => player.username == socket.session.username);
+                    if (Types.roles[player.role]?.alignment != 'Mafia') return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'You are unable to message during the night.' } }));
+                    else filter = client => Types.roles[lobby.players.current.find(player => player.username == client.session.username).role]?.alignment == 'Mafia';
+                }
+
                 WebSocketServer.brodcast(JSON.stringify({
                     header: 'RECV_MESSAGE',
                     message,
-                }), client => client.session.activeGames.includes(lobby.id));
+                }), filter);*/
             }
         }
     });
