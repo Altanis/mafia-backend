@@ -37,25 +37,30 @@
         "Roleblocker": {
             "alignment": "Mafia",
             "meetings": ["Town", "Mafia"],
-            "ability": null
+            "ability": {
+                "type": "disable",
+                "target": "rest"
+            }
         }
     },
     "phases": {
         "Day": {
-            "time": 3e5
+            "time": 10000
         },
         "Night": {
-            "time": 9e4
+            "time": 5000
         }
     },
     "meetings": {
         "Town": {
             "vote": true,
-            "result": "kill"
+            "result": "kill",
+            "target": "all"
         },
         "Mafia": {
             "vote": true,
-            "result": "kill"
+            "result": "kill",
+            "target": "all"
         }
     },
     "items": {
@@ -63,5 +68,5 @@
             "anonymous": 0.5,
             "effect": "kill"
         }
-    }
+    },
 }

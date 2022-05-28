@@ -38,6 +38,8 @@ LobbyRouter.route('/create')
                     avatar: userData.avatar,
                     role: '',
                     dead: false,
+                    item: null,
+                    didAction: false,
                 }],
                 required: setup.roles.length,
             },
@@ -75,7 +77,7 @@ LobbyRouter.route('/join')
         if (lobbyData.players.current.length >= lobbyData.players.required/* || lobbyData.started*/) return response.status(400).send('Lobby is filled.');
         const lobby = await Lobbies.findOne({ _id: lobbyData._id, });
 
-        lobby.players.current.push({ username: userData.username, avatar: userData.avatar, role: '', dead: false, });
+        lobby.players.current.push({ username: userData.username, avatar: userData.avatar, role: '', dead: false, item: null, didAction: false, });
 
         if (lobby.players.current.length >= lobby.players.required) {
             lobby.phase = 'Starting...';
@@ -145,7 +147,7 @@ LobbyRouter.route('/leave')
         lobby.players.current.splice(playerIndex, 1);
 
         let suicide = false;
-        if (lobby.ranked && lobby.phase.toLowerCase().includes('day') || lobby.phase.toLowerCase().includes('night')) {
+        if (lobby.phase.toLowerCase().includes('day') || lobby.phase.toLowerCase().includes('night')) {
             lobby.ranked = false;
             suicide = true;
         }
@@ -182,7 +184,9 @@ LobbyRouter.route('/leave')
 
 LobbyRouter.route('/:page')
     .get(async (request, response) => {
-        let lobbies = await Lobbies.find();
+        let _lobbies = await Lobbies.find();
+        let lobbies = JSON.parse(JSON.stringify(_lobbies));
+
         const page = parseInt(request.params?.page) || 0;
         if (typeof page != 'number') return response.status(400).send('Invalid page count.');
 
@@ -194,10 +198,13 @@ LobbyRouter.route('/:page')
         }
         lobbiesSpliced = lobbiesSpliced.reverse();
         lobbiesSpliced.forEach(lobbies => {
-            lobbies.forEach(l => {                
-                l.players.current.map(player => {
+            lobbies.forEach(l => {
+                delete l.messages;
+                l.players.current.forEach(player => {                    
                     delete player.role;
                     delete player.dead;
+                    delete player.item;
+                    delete player.didAction;
                 });
             });
         });

@@ -1,5 +1,7 @@
 # Mafia Backend
 
+## This GitHub commit is untested and may contain flawed code.
+
 This project is a WIP and is not fully finished yet.
 This will implement a previous project I was working on ([see here](https://github.com/CoderSudaWuda/chat-backend)) for players to communicate to eachother.
 
@@ -22,18 +24,18 @@ To Do List:
    - [x] Check when lobby fills.
    - [x] Chat when waiting for players to fill up.
 - [ ] Create a Mafia Game.
-   - [ ] Roles
+   - [x] Roles
       - [x] Assign roles.
       - [x] Create JSON format of how roles should work.
-      - [ ] Implement role typings and make them funcitonal.
+      - [x] Implement role typings and make them funcitonal.
    - [ ] Phases
-      - [ ] Create a functional Night and Day phase.
-      - [ ] Make specific parties able to talk to eachother during the day.
-      - [ ] Give Mafia ability to vote a player to murder.
-      - [ ] Give Town ability to vote a player to lynch.
-      - [ ] Add a timer to lobbies.
+      - [x] Create a functional Night and Day phase.
+      - [x] Make specific parties able to talk to eachother during the day.
+      - [x] Give Mafia ability to vote a player to murder.
+      - [x] Give Town ability to vote a player to lynch.
+      - [x] Add a timer to lobbies.
    - [ ] Items
-      - [ ] Create a JSON format of how items should work.
+      - [x] Create a JSON format of how items should work.
       - [ ] Implement item typings and make them functional.
    - [ ] Create a Win Condition.
       - [ ] Create a Win Condition for both Town and Mafia.

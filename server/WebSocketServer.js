@@ -118,9 +118,12 @@ WebSocketServer.on('connection', async function(socket, request) {
                 if (typeof message != 'string') return socket.ban();
 
                 const lobby = await Lobbies.findOne({ id: socket.session.activeGames[0], });
-                console.log(JSON.stringify(lobby));
+                const player = lobby.players.current.find(player => player.username == socket.session.username);
 
-                if (!lobby) return socket.send(JSON.stringify({ header: 'INVALID_LOBBY', data: { message: 'Invalid Lobby ID.' } }));
+                if (!player) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'You are not in that lobby.' } }));
+                if (lobby.phase.includes('Night') && Types.roles[player.role]?.alignment != 'Mafia') return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'You are not allowed to send messages at Night.' } }));
+
+                if (!lobby) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Invalid Lobby ID.' } }));
                 if (message.length > 500 || message.length < 1) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Message length must be within bounds of 1-500.' } })); 
 
                 let pass = false;
@@ -132,15 +135,15 @@ WebSocketServer.on('connection', async function(socket, request) {
 
                 if (pass) return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'Your message contained a slur. Please refrain from sending them.' } }));
 
-                const clients = [...WebSocketServer.clients].filter(async client => {
+                const clients = [...WebSocketServer.clients].filter(client => {
                     if (client.session.activeGames[0] != lobby.id) return false;
                     
                     const player = lobby.players.current.find(player => player.username == client.session.username);
-                    console.log(player);
+                    if (player.dead) return true;
 
-                    if (lobby.phase.includes('Night')) {
-                        if (Types.roles[player.role]?.alignment != 'Mafia') return false; // Will change this later if separate types of messages can be sent by a role.
-                    }
+                    if (lobby.phase.includes('Night') && Types.roles[player.role]?.alignment != 'Mafia') return false; // Will change this later if separate types of messages can be sent by a role.
+
+                    return true;
                 });
 
                 clients.forEach(client => {
@@ -157,19 +160,6 @@ WebSocketServer.on('connection', async function(socket, request) {
                 });
 
                 lobby.save().catch(er => console.error('Could not save message. Error:', er));
-                
-
-                /*let filter = client => client.session.activeGames.includes(lobby.id);
-                if (lobby.phase.includes('Night')) {
-                    const player = lobby.players.current.find(player => player.username == socket.session.username);
-                    if (Types.roles[player.role]?.alignment != 'Mafia') return socket.send(JSON.stringify({ header: 'MESSAGE_REJECT', data: { message: 'You are unable to message during the night.' } }));
-                    else filter = client => Types.roles[lobby.players.current.find(player => player.username == client.session.username).role]?.alignment == 'Mafia';
-                }
-
-                WebSocketServer.brodcast(JSON.stringify({
-                    header: 'RECV_MESSAGE',
-                    message,
-                }), filter);*/
             }
         }
     });
@@ -180,5 +170,3 @@ httpServer.on('upgrade', function(req, socket, head) {
         WebSocketServer.emit('connection', socket, req);
     });
 });
-
-module.exports = { WebSocketServer };

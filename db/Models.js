@@ -33,6 +33,7 @@ const Lobbies = mongoose.model('Lobbies', new mongoose.Schema({
     ranked: Boolean,
     messages: [Object],
     started: Boolean,
+    votes: Object,
 }));
 
 module.exports = { Users, BanList, Lobbies };
